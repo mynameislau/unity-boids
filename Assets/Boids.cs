@@ -4,7 +4,7 @@ using System;
 using UnityEngine;
 using BoidsNS;
 using System.Linq;
-
+using Functional;
 public class Boids : MonoBehaviour {
 	public Mesh mesh;
 	public Material material;
@@ -12,15 +12,19 @@ public class Boids : MonoBehaviour {
 	private Boid[] boids;
 
 	private const int flockRadius = 100;
-	private const int personalSpaceRadius = 2;
+	public float boidSize = 1f;
+	public float personalSpaceRadius = 2f;
 	private const int nbBoids = 50;
 	private const int spawnRadius = 20;
+	public float alignmentWeight = 0.1f;
+	public float cohesionWeight = 1f;
+	public float separationWeight = 1f;
+	public float boidDrag = 1f;
 
 
 	// Use this for initialization
 	void Start () {
 		boids = Times<Boid>(nbBoids, createBoid);
-		print(boids.Length);
 	}
 
 	T[] Times<T> (int times, Func<int, T> fn) {
@@ -39,31 +43,48 @@ public class Boids : MonoBehaviour {
 		boidGO.transform.parent = gameObject.transform;
 		Rigidbody rb = boidGO.AddComponent<Rigidbody>();
 		rb.useGravity = false;
-		print(rb);
+		rb.drag = boidDrag;
 		boidGO.transform.position = new Vector3(
-			UnityEngine.Random.Range(0, spawnRadius),
-			UnityEngine.Random.Range(0, spawnRadius),
-			UnityEngine.Random.Range(0, spawnRadius)
+			UnityEngine.Random.Range(-spawnRadius, spawnRadius),
+			UnityEngine.Random.Range(-spawnRadius, spawnRadius),
+			UnityEngine.Random.Range(-spawnRadius, spawnRadius)
 		);
+
 		boidGO.AddComponent<MeshFilter>().mesh = mesh;
 		boidGO.AddComponent<MeshRenderer>().material = material;
-		
+
 		return new Boid(boidGO, rb);
 	}
-	
-	// Update is called once per frame
+
 	void Update () {
-		Array.ForEach(boids, updateBoid);
+		if (boids.Length > 0) {
+			F.ForEach(updateBoid, boids);
+		}
 	}
 
 	void updateBoid (Boid boid) {
 		Rigidbody rb = boid.body;
-		rb.AddForce(Cohesion(boid) * 1f);
-		rb.AddForce(Separation(boid) * 1f);
+		rb.AddForce(LimitedSteer(rb.velocity, Cohesion(boid)));
+		rb.AddForce(LimitedSteer(rb.velocity, Separation(boid)));
+		rb.AddForce(LimitedSteer(rb.velocity, Alignment(boid)));
+		rb.AddForce(LimitedSteer(rb.velocity, MainZone(boid)));
+
+		boid.gameObject.transform.rotation = Quaternion.LookRotation(rb.velocity);
 	}
 
-	Vector3? AverageNeighbours (int radius, Boid boid) {
-		Vector3 boidPos = boidPosition(boid);
+	Vector3 LimitedSteer (Vector3 source, Vector3 target) {
+		float magnitude = target.magnitude;
+		Vector3 rotated = Vector3.RotateTowards(NormalizeVec(source), NormalizeVec(target), (float) Math.PI * 0.2f, 1f);
+		return rotated * magnitude;
+	}
+
+	Vector3 NormalizeVec (Vector3 vec) {
+		Vector3 copy = vec;
+		copy.Normalize();
+		return copy;
+	}
+
+	Vector3? AverageNeighbours (float radius, Boid boid) {
 		Boid[] neighs = neighbours(
 			radius,
 			everyBoidsBut(boids, boid),
@@ -74,14 +95,18 @@ public class Boids : MonoBehaviour {
 	}
 
 	Vector3 Alignment (Boid boid) {
-		Vector3 boidPos = boidPosition(boid);
 		Boid[] neighs = neighbours(
 			flockRadius,
 			boids,
 			boid
 		);
 
-		return averageVectors(boidVelocities(neighs)).Value;
+		return averageVectors(boidVelocities(neighs)).Value * alignmentWeight;
+	}
+
+	Vector3 MainZone (Boid boid) {
+		Vector3 distanceFromCenter = Vector3.zero - boid.body.position; //could have been just magnitude of boid pos
+		return distanceFromCenter * 0.2f;
 	}
 
 	Vector3 Cohesion (Boid boid) {
@@ -90,7 +115,7 @@ public class Boids : MonoBehaviour {
 			float distance = Vector3.Distance(boid.body.position, av.Value);
 			float ratio = distance / flockRadius;
 
-			return (av.Value - boid.body.position) * ratio;
+			return (av.Value - boid.body.position) * ratio * cohesionWeight;
 		}
 		else {
 			return Vector3.zero;
@@ -103,7 +128,7 @@ public class Boids : MonoBehaviour {
 			float distance = Vector3.Distance(boid.body.position, av.Value);
 			float ratio = distance / personalSpaceRadius;
 
-			return (boid.body.position - av.Value) * ratio;
+			return (boid.body.position - av.Value) * ratio * separationWeight;
 		}
 		else {
 			return Vector3.zero;
@@ -111,31 +136,27 @@ public class Boids : MonoBehaviour {
 	}
 
 	Boid[] everyBoidsBut (Boid[] boidList, Boid boid) {
-		return boidList.Where(curr => curr != boid).ToArray();
+		return F.Filter(curr => curr != boid, boidList);
 	}
 
 	Vector3? averageVectors (Vector3[] vectors) {
 		if (vectors.Length == 0) { return null; }
-		Vector3 sum = Reduce(new Vector3(0,0,0), (acc, curr) => acc + curr, vectors);
+		Vector3 sum = F.Reduce(new Vector3(0,0,0), (acc, curr) => acc + curr, vectors);
 		return sum / vectors.Length;
 	}
 
-	T1[] Map<T, T1> (Func<T, T1> fn, T[] array) => array.Select(fn).ToArray();
-	T[] Filter<T> (Func<T, bool> fn, T[] array) => array.Where(fn).ToArray();
+	Vector3 boidPosition (Boid boid) { return boid.body.position; }
 
-	B Reduce <T, B> (B baseAcc, Func<B, T, B> fn, T[] array) => array.Aggregate(baseAcc, fn);
+	Vector3[] boidPositions (Boid[] boidList) { return F.Map(boidPosition, boidList); }
 
-	Vector3 boidPosition (Boid boid) => boid.body.position;
+	Vector3 boidVelocity (Boid boid) { return boid.body.velocity; }
 
-	Vector3[] boidPositions (Boid[] boidList) => Map(boidPosition, boidList);
+	Vector3[] boidVelocities (Boid[] boidList) { return F.Map(boidPosition, boidList); }
 
-	Vector3 boidVelocity (Boid boid) => boid.body.velocity;
-
-	Vector3[] boidVelocities (Boid[] boidList) => Map(boidPosition, boidList);
-
-	Boid[] neighbours (float radius, Boid[] otherBoids, Boid boid) =>
-		Filter(
+	Boid[] neighbours (float radius, Boid[] otherBoids, Boid boid) {
+		return F.Filter(
 			currentBoid => Vector3.Distance(boid.body.position, currentBoid.body.position) < radius,
 			otherBoids
 		);
+	}
 }
