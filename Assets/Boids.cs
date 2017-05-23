@@ -12,11 +12,14 @@ public class Boids : MonoBehaviour {
 	private Boid[] boids;
 
 	private const int flockRadius = 100;
+	private const int personalSpaceRadius = 2;
+	private const int nbBoids = 50;
+	private const int spawnRadius = 20;
 
 
 	// Use this for initialization
 	void Start () {
-		boids = Times<Boid>(4, createBoid);
+		boids = Times<Boid>(nbBoids, createBoid);
 		print(boids.Length);
 	}
 
@@ -38,9 +41,9 @@ public class Boids : MonoBehaviour {
 		rb.useGravity = false;
 		print(rb);
 		boidGO.transform.position = new Vector3(
-			UnityEngine.Random.Range(0, 10),
-			UnityEngine.Random.Range(0, 10),
-			UnityEngine.Random.Range(0, 10)
+			UnityEngine.Random.Range(0, spawnRadius),
+			UnityEngine.Random.Range(0, spawnRadius),
+			UnityEngine.Random.Range(0, spawnRadius)
 		);
 		boidGO.AddComponent<MeshFilter>().mesh = mesh;
 		boidGO.AddComponent<MeshRenderer>().material = material;
@@ -55,40 +58,84 @@ public class Boids : MonoBehaviour {
 
 	void updateBoid (Boid boid) {
 		Rigidbody rb = boid.body;
-		rb.AddForce(Vector3.right * 1f);
-		rb.AddForce(Vector3.up * 1f);
+		rb.AddForce(Cohesion(boid) * 1f);
+		rb.AddForce(Separation(boid) * 1f);
+	}
+
+	Vector3? AverageNeighbours (int radius, Boid boid) {
+		Vector3 boidPos = boidPosition(boid);
+		Boid[] neighs = neighbours(
+			radius,
+			everyBoidsBut(boids, boid),
+			boid
+		);
+
+		return averageVectors(boidPositions(neighs));
+	}
+
+	Vector3 Alignment (Boid boid) {
+		Vector3 boidPos = boidPosition(boid);
+		Boid[] neighs = neighbours(
+			flockRadius,
+			boids,
+			boid
+		);
+
+		return averageVectors(boidVelocities(neighs)).Value;
 	}
 
 	Vector3 Cohesion (Boid boid) {
-		Vector3 boidPos = boidPosition(boid);
-		Vector3[] neighs = neighbours(
-			flockRadius,
-			boidPositions(otherBoids(boids, boid)),
-			boidPos
-		);
+		Vector3? av = AverageNeighbours(flockRadius, boid);
+		if (av.HasValue) {
+			float distance = Vector3.Distance(boid.body.position, av.Value);
+			float ratio = distance / flockRadius;
 
-		Vector3 av = averageVectors(neighs);
-		Vector3.Distance(boidPos, av);
+			return (av.Value - boid.body.position) * ratio;
+		}
+		else {
+			return Vector3.zero;
+		}
 	}
 
-	Boid[] otherBoids (Boid[] boidList, Boid boid) {
+	Vector3 Separation (Boid boid) {
+		Vector3? av = AverageNeighbours(personalSpaceRadius, boid);
+		if (av.HasValue) {
+			float distance = Vector3.Distance(boid.body.position, av.Value);
+			float ratio = distance / personalSpaceRadius;
+
+			return (boid.body.position - av.Value) * ratio;
+		}
+		else {
+			return Vector3.zero;
+		}
+	}
+
+	Boid[] everyBoidsBut (Boid[] boidList, Boid boid) {
 		return boidList.Where(curr => curr != boid).ToArray();
 	}
 
-	Vector3 averageVectors (Vector3[] vectors) {
-		Vector3 sum = vectors.Aggregate(new Vector3(0,0,0), (acc, curr) => acc + curr);
+	Vector3? averageVectors (Vector3[] vectors) {
+		if (vectors.Length == 0) { return null; }
+		Vector3 sum = Reduce(new Vector3(0,0,0), (acc, curr) => acc + curr, vectors);
 		return sum / vectors.Length;
 	}
 
-	Vector3 boidPosition (Boid boid) {
-		return boid.body.position;
-	}
+	T1[] Map<T, T1> (Func<T, T1> fn, T[] array) => array.Select(fn).ToArray();
+	T[] Filter<T> (Func<T, bool> fn, T[] array) => array.Where(fn).ToArray();
 
-	Vector3[] boidPositions (Boid[] boidList) {
-		return boidList.Select(boidPosition).ToArray();
-	}
+	B Reduce <T, B> (B baseAcc, Func<B, T, B> fn, T[] array) => array.Aggregate(baseAcc, fn);
 
-	Vector3[] neighbours (float radius, Vector3[] positionList, Vector3 position) {
-		return positionList.Where(pos => Vector3.Distance(position, pos) < radius).ToArray();
-	}
+	Vector3 boidPosition (Boid boid) => boid.body.position;
+
+	Vector3[] boidPositions (Boid[] boidList) => Map(boidPosition, boidList);
+
+	Vector3 boidVelocity (Boid boid) => boid.body.velocity;
+
+	Vector3[] boidVelocities (Boid[] boidList) => Map(boidPosition, boidList);
+
+	Boid[] neighbours (float radius, Boid[] otherBoids, Boid boid) =>
+		Filter(
+			currentBoid => Vector3.Distance(boid.body.position, currentBoid.body.position) < radius,
+			otherBoids
+		);
 }
