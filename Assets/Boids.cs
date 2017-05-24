@@ -8,9 +8,8 @@ using Functional;
 public class Boids : MonoBehaviour {
 	public Mesh mesh;
 	public Material material;
-
 	private Boid[] boids;
-
+	public AnimationClip clip;
 	private const int flockRadius = 100;
 	public float boidSize = 1f;
 	public float personalSpaceRadius = 2f;
