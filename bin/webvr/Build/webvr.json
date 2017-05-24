@@ -1,0 +1,9 @@
+{
+"TOTAL_MEMORY": 805306368,
+"dataUrl": "webvr.data.unityweb",
+"asmCodeUrl": "webvr.asm.code.unityweb",
+"asmMemoryUrl": "webvr.asm.memory.unityweb",
+"asmFrameworkUrl": "webvr.asm.framework.unityweb",
+"splashScreenStyle": "Dark",
+"backgroundColor": "#222C36"
+}
