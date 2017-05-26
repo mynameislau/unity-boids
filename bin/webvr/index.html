@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0, shrink-to-fit=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Unity WebGL Player | Boids</title>
+    <script src="js/webvr-polyfill.min.js"></script>
+    <script src="Build/UnityLoader.js"></script>
+    <script>
+      var gameInstance = UnityLoader.instantiate("gameContainer", "Build/webvr.json");
+    </script>
+  </head>
+  <body>
+    <div id="gameContainer" style="width: 960px; height: 600px; margin: auto"  data-vr-presentation-text="Put on your VR headset now"></div>
+    <div class="fullscreen">
+      <button id="btnVrToggle" class="btn btnVr btnVrToggle waiting" data-enter-vr-title="Enter VR" data-exit-vr-title="Exit VR" title="Enter VR">Enter VR</button>
+      <div class="vr">
+        <button id="btnVrReset" class="btn btnVr btnVrReset waiting" title="Reset View">Reset View</button>
+        <button id="btnFsEnter" class="btn btnFsEnter waiting" title="Fullscreen">Fullscreen</button>
+      </div>
+    </div>
+    <script src="js/three.min.js"></script>
+    <script src="js/UnityWebVRManager.js"></script>
+  </body>
+</html>
