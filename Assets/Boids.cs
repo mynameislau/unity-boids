@@ -6,14 +6,13 @@ using BoidsNS;
 using System.Linq;
 using Functional;
 public class Boids : MonoBehaviour {
-	public Mesh mesh;
-	public Material material;
+	public GameObject boid;
 	private Boid[] boids;
 	public AnimationClip clip;
 	private const int flockRadius = 100;
 	public float boidSize = 1f;
 	public float personalSpaceRadius = 2f;
-	private const int nbBoids = 50;
+	private const int nbBoids = 20;
 	private const int spawnRadius = 20;
 	public float alignmentWeight = 0.1f;
 	public float cohesionWeight = 1f;
@@ -38,9 +37,10 @@ public class Boids : MonoBehaviour {
 	}
 
 	Boid createBoid (int n = 0) {
-		GameObject boidGO = new GameObject("BoidGO");
+		GameObject boidGO = UnityEngine.Object.Instantiate(boid);
+		boidGO.transform.rotation = Quaternion.Euler(0, 0, 0);
 		boidGO.transform.parent = gameObject.transform;
-		Rigidbody rb = boidGO.AddComponent<Rigidbody>();
+		Rigidbody rb = boidGO.GetComponent(typeof(Rigidbody)) as Rigidbody;
 		rb.useGravity = false;
 		rb.drag = boidDrag;
 		boidGO.transform.position = new Vector3(
@@ -49,28 +49,61 @@ public class Boids : MonoBehaviour {
 			UnityEngine.Random.Range(-spawnRadius, spawnRadius)
 		);
 
-		boidGO.AddComponent<MeshFilter>().mesh = mesh;
-		boidGO.AddComponent<MeshRenderer>().material = material;
-
 		return new Boid(boidGO, rb);
 	}
 
-	void Update () {
+	void FixedUpdate () {
 		if (boids.Length > 0) {
 			F.ForEach(updateBoid, boids);
 		}
 	}
 
-	void updateBoid (Boid boid) {
-		Rigidbody rb = boid.body;
-		rb.AddForce(LimitedSteer(rb.velocity, Cohesion(boid)));
-		rb.AddForce(LimitedSteer(rb.velocity, Separation(boid)));
-		rb.AddForce(LimitedSteer(rb.velocity, Alignment(boid)));
-		rb.AddForce(LimitedSteer(rb.velocity, MainZone(boid)));
-
-		boid.gameObject.transform.rotation = Quaternion.LookRotation(rb.velocity);
+	Vector3 GetTorque (Vector3 eulerAngle) {
+		Vector3 bla = eulerAngle / 360;
+		return new Vector3(
+			bla.x > 0.5 ? -(1 - bla.x) : bla.x,
+			bla.y > 0.5 ? -(1 - bla.y) : bla.y,
+			bla.z > 0.5 ? -(1 - bla.z) : bla.z
+		);
 	}
 
+	void updateBoid (Boid boid) {
+		Rigidbody rb = boid.body;
+
+		Vector3 cohesion = Cohesion(boid);
+		Vector3 separation = Separation(boid);
+		Vector3 alignment = Alignment(boid);
+		Vector3 mainZone = MainZone(boid);
+
+		Vector3[] influences = { cohesion, separation, alignment, mainZone };
+		Vector3 sum = F.Reduce(Vector3.zero, (acc, vec) => acc + vec, influences);
+
+		Vector3 localSum = boid.gameObject.transform.InverseTransformDirection(sum);
+		//rb.angularDrag = 1;
+		//rb.AddRelativeTorque(Vector3.forward - new Vector3(-localSum.y, -localSum.x, 0));
+		// rb.AddRelativeTorque(new Vector3(-localSum.y, -localSum.x, 0));
+		//boid.gameObject.transform.rotation = Quaternion.LookRotation(localSum);
+		Quaternion rot = Quaternion.FromToRotation(Vector3.forward, localSum);
+		Vector3 torque = GetTorque(rot.eulerAngles) * rb.velocity.magnitude;
+		torque.z = 0;
+		rb.AddRelativeTorque(torque);
+
+		rb.AddRelativeForce(Vector3.forward * sum.magnitude * 0.2f);
+		drawAgentVector(boid.gameObject, rot * Vector3.forward * 10, () => Color.green);
+		// drawAgentVector(boid.gameObject, localSum , () => Color.red);
+
+		// rb.AddForce(LimitedSteer(rb.velocity, Cohesion(boid)));
+		// rb.AddForce(LimitedSteer(rb.velocity, Separation(boid)));
+		// rb.AddForce(LimitedSteer(rb.velocity, Alignment(boid)));
+		// rb.AddForce(LimitedSteer(rb.velocity, MainZone(boid)));
+
+	//	boid.gameObject.transform.rotation = Quaternion.LookRotation(rb.velocity);
+	}
+	void drawAgentVector (GameObject gameObj, Vector3 vec, Func<Color> colorFn) {
+		Vector3 pos = gameObj.transform.TransformPoint(Vector3.zero);
+		Vector3 dir = gameObj.transform.TransformDirection(vec);
+		Debug.DrawLine(pos, pos + dir, colorFn());
+	}
 	Vector3 LimitedSteer (Vector3 source, Vector3 target) {
 		float magnitude = target.magnitude;
 		Vector3 rotated = Vector3.RotateTowards(NormalizeVec(source), NormalizeVec(target), (float) Math.PI * 0.2f, 1f);

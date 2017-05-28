@@ -6,12 +6,35 @@ using System.Linq;
 namespace Functional {
 	class F {
 
-		static public void ForEach<T> (Action<T> fn, T[] array) {
-			foreach (var item in array)
+		static public void ForEach<T> (Action<T, int> fn, T[] array) {
+			for (int i = 0; i < array.Length; i++)
 			{
-				fn(item);
+				fn(array[i], i);
 			}
 		}
+		static public void ForEach<T> (Action<T> fn, T[] array) {
+			for (int i = 0; i < array.Length; i++)
+			{
+				fn(array[i]);
+			}
+		}
+
+		static public T[] FilterOutNulls<T> (T?[] array) where T:struct {
+			T?[] filtered = F.Filter((entry) => entry.HasValue, array);
+			return F.Map(entry => entry.Value, filtered);
+		}
+
+		static public T? Find<T> (Func<T, bool> fn, T[] array) where T:struct {
+			try {
+				T result = array.First(fn);
+				return result;
+			}
+			catch {
+				return null;
+			}
+
+		}
+
 		static public T1[] Map<T, T1> (Func<T, T1> fn, T[] array) { return array.Select(fn).ToArray(); }
 		static public T[] Filter<T> (Func<T, bool> fn, T[] array) { return array.Where(fn).ToArray(); }
 
