@@ -27,7 +27,7 @@ public class Boids : MonoBehaviour {
 	IEnumerator ComputeInfluences () {
 		foreach (var boid in boids)
 		{
-			boid.navigator.registerInfluence(Influences(boid));
+			boid.navigator.RegisterInfluence("flock", Influences(boid));
 			yield return null;
 		}
 

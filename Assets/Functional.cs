@@ -17,6 +17,10 @@ namespace Functional {
 			return array;
 		}
 
+		// static public T[] Reject<T> (Func<T, bool> fn, T[] array) {
+		// 	return array.
+		// }
+
 		static public void ForEach<T> (Action<T, int> fn, T[] array) {
 			for (int i = 0; i < array.Length; i++)
 			{
@@ -48,6 +52,8 @@ namespace Functional {
 
 		static public T1[] Map<T, T1> (Func<T, T1> fn, T[] array) { return array.Select(fn).ToArray(); }
 		static public T[] Filter<T> (Func<T, bool> fn, T[] array) { return array.Where(fn).ToArray(); }
+		static public IEnumerable<T> Filter<T> (Func<T, bool> fn, IEnumerable<T> enumerable) { return enumerable.Where(fn); }
+		static public List<T> Filter<T> (Func<T, bool> fn, List<T> enumerable) { return enumerable.Where(fn).ToList(); }
 
 		static public T[] Copy<T> (T[] array, int start, int length) {
 			T[] dest = new T[array.Length - 1];

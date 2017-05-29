@@ -11,10 +11,10 @@ namespace BoidsNS
     public string name;
   }
 
-	struct NamedInfluence {
+	public struct NamedInfluence {
 		public string name;
 		public InfluencesData? influence;
-		NamedInfluence (string n, InfluencesData? i) {
+		public NamedInfluence (string n, InfluencesData? i) {
       name = n;
       influence = i;
     }

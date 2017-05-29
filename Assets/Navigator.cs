@@ -7,18 +7,16 @@ using Functional;
 
 public class Navigator : MonoBehaviour {
 	private Rigidbody rb;
-	private GameObject agentObj;
 
-	private List<NamedInfluence> influences;
+	private List<NamedInfluence> influences = new List<NamedInfluence>();
 	// Use this for initialization
 	void Start () {
-		rb = agentObj.GetComponent(typeof(Rigidbody)) as Rigidbody;
+		rb = gameObject.GetComponent(typeof(Rigidbody)) as Rigidbody;
 	}
 
-	public void registerInfluence (string name, NamedInfluence influence) {
-		F.Filter(curr => curr.name == influence.name, influences.ToArray())
-		.ToList()
-		.Add(new NamedInfluence(name, influence));
+	public void RegisterInfluence (string name, InfluencesData? influence) {
+		influences = F.Filter(curr => curr.name != name, influences);
+		influences.Add(new NamedInfluence(name, influence));
 	}
 
 	Vector3 GetTorque (Vector3 eulerAngle) {
@@ -31,8 +29,9 @@ public class Navigator : MonoBehaviour {
 	}
 	// Update is called once per frame
 	void FixedUpdate () {
-		InfluencesData[] filtered = F.FilterOutNulls(influences.ToArray());
+		InfluencesData[] filtered = F.FilterOutNulls(F.Map(namedInfluence => namedInfluence.influence, influences.ToArray()));
 		Vector3[] vectors = F.Map(influence => influence.vector, filtered);
+		print("poiop   " +  influences.Count);
 		Vector3? maybeVectorsAverage = AverageVectors(vectors);
 
 		if (maybeVectorsAverage.HasValue) {
