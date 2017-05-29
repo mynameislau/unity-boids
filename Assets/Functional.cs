@@ -6,6 +6,17 @@ using System.Linq;
 namespace Functional {
 	class F {
 
+		static public T[] Times<T> (int times, Func<int, T> fn) {
+			T[] array = new T[times];
+
+			for (int i = 0; i < times; i++)
+			{
+				array[i] = fn(i);
+			}
+
+			return array;
+		}
+
 		static public void ForEach<T> (Action<T, int> fn, T[] array) {
 			for (int i = 0; i < array.Length; i++)
 			{

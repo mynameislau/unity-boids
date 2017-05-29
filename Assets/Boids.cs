@@ -19,21 +19,21 @@ public class Boids : MonoBehaviour {
 	public float separationWeight = 1f;
 	public float boidDrag = 1f;
 
-
-	// Use this for initialization
 	void Start () {
-		boids = Times<Boid>(nbBoids, createBoid);
+		boids = F.Times<Boid>(nbBoids, createBoid);
+		StartCoroutine(ComputeInfluences());
 	}
 
-	T[] Times<T> (int times, Func<int, T> fn) {
-		T[] array = new T[times];
-
-		for (int i = 0; i < times; i++)
+	IEnumerator ComputeInfluences () {
+		foreach (var boid in boids)
 		{
-			array[i] = fn(i);
+			boid.navigator.registerInfluence(Influences(boid));
+			yield return null;
 		}
 
-		return array;
+		yield return new WaitForEndOfFrame();
+		yield return new WaitForSeconds(0.2f);
+		StartCoroutine(ComputeInfluences());
 	}
 
 	Boid createBoid (int n = 0) {
@@ -41,6 +41,7 @@ public class Boids : MonoBehaviour {
 		boidGO.transform.rotation = Quaternion.Euler(0, 0, 0);
 		boidGO.transform.parent = gameObject.transform;
 		Rigidbody rb = boidGO.GetComponent(typeof(Rigidbody)) as Rigidbody;
+		Navigator navigator = boidGO.GetComponent(typeof(Navigator)) as Navigator;
 		rb.useGravity = false;
 		rb.drag = boidDrag;
 		boidGO.transform.position = new Vector3(
@@ -49,7 +50,7 @@ public class Boids : MonoBehaviour {
 			UnityEngine.Random.Range(-spawnRadius, spawnRadius)
 		);
 
-		return new Boid(boidGO, rb);
+		return new Boid(boidGO, rb, navigator);
 	}
 
 	void FixedUpdate () {
@@ -66,8 +67,7 @@ public class Boids : MonoBehaviour {
 			bla.z > 0.5 ? -(1 - bla.z) : bla.z
 		);
 	}
-
-	void updateBoid (Boid boid) {
+	InfluencesData Influences (Boid boid) {
 		Rigidbody rb = boid.body;
 
 		Vector3 cohesion = Cohesion(boid);
@@ -84,12 +84,30 @@ public class Boids : MonoBehaviour {
 		// rb.AddRelativeTorque(new Vector3(-localSum.y, -localSum.x, 0));
 		//boid.gameObject.transform.rotation = Quaternion.LookRotation(localSum);
 		Quaternion rot = Quaternion.FromToRotation(Vector3.forward, localSum);
-		Vector3 torque = GetTorque(rot.eulerAngles) * rb.velocity.magnitude;
+		Vector3 torque = GetTorque(rot.eulerAngles) * 0.1f;
 		torque.z = 0;
-		rb.AddRelativeTorque(torque);
 
-		rb.AddRelativeForce(Vector3.forward * sum.magnitude * 0.2f);
-		drawAgentVector(boid.gameObject, rot * Vector3.forward * 10, () => Color.green);
+		InfluencesData influencesData;
+		influencesData.torque = torque;
+		influencesData.magnitude = sum.magnitude;
+		influencesData.vector = localSum;
+		influencesData.name = "flock";
+		return influencesData;
+	}
+
+	void updateBoid (Boid boid) {
+		Rigidbody rb = boid.body;
+		Vector3 torque;
+		float magnitude;
+
+		if (boid.influencesData.HasValue) {
+			torque = boid.influencesData.Value.torque;
+			magnitude = boid.influencesData.Value.magnitude;
+
+			// rb.AddRelativeTorque(torque);
+			// rb.AddRelativeForce(Vector3.forward * 0.2f);
+			// drawAgentVector(boid.gameObject, boid.influencesData.Value.vector, () => Color.green);
+		}
 		// drawAgentVector(boid.gameObject, localSum , () => Color.red);
 
 		// rb.AddForce(LimitedSteer(rb.velocity, Cohesion(boid)));

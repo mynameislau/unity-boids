@@ -6,11 +6,14 @@ namespace BoidsNS
 {
   public class Boid {
     public Rigidbody body;
+    public Navigator navigator;
     public GameObject gameObject;
+    public InfluencesData? influencesData = null;
 
-    public Boid (GameObject go, Rigidbody rb) {
+    public Boid (GameObject go, Rigidbody rb, Navigator n) {
       body = rb;
       gameObject = go;
+      navigator = n;
     }
   }
 }
