@@ -4,11 +4,12 @@ using System.Collections.Generic;
 using UnityEngine;
 using BoidsNS;
 using Functional;
+using VacuumBreather;
 
 public class Navigator : MonoBehaviour {
 	private Rigidbody rb;
-
-	private List<NamedInfluence> influences = new List<NamedInfluence>();
+	private PidQuaternionController anglePIDController = new PidQuaternionController(8.0f, 0.0f, 0.05f);
+	private List<Influence> influences = new List<Influence>();
 	// Use this for initialization
 	void Start () {
 		rb = gameObject.GetComponent(typeof(Rigidbody)) as Rigidbody;
@@ -16,7 +17,7 @@ public class Navigator : MonoBehaviour {
 
 	public void RegisterInfluence (string name, InfluencesData? influence) {
 		influences = F.Filter(curr => curr.name != name, influences);
-		influences.Add(new NamedInfluence(name, influence));
+		influences.Add(new Influence(name, influence));
 	}
 
 	Vector3 GetTorque (Vector3 eulerAngle) {
@@ -29,21 +30,31 @@ public class Navigator : MonoBehaviour {
 	}
 	// Update is called once per frame
 	void FixedUpdate () {
-		InfluencesData[] filtered = F.FilterOutNulls(F.Map(namedInfluence => namedInfluence.influence, influences.ToArray()));
+		InfluencesData[] filtered = F.FilterOutNulls(F.Map(Influence => Influence.influence, influences.ToArray()));
 		Vector3[] vectors = F.Map(influence => influence.vector, filtered);
-		print("poiop   " +  influences.Count);
 		Vector3? maybeVectorsAverage = AverageVectors(vectors);
 
 		if (maybeVectorsAverage.HasValue) {
 			Vector3 vectorsAverage = maybeVectorsAverage.Value;
-			Quaternion rot = Quaternion.FromToRotation(Vector3.forward, vectorsAverage);
-			Vector3 torque = GetTorque(rot.eulerAngles) * 0.1f;
-			torque.z = 0;
+			Quaternion rot = Quaternion.LookRotation(vectorsAverage);
+			// Vector3 torque = GetTorque(rot.eulerAngles) * 0.1f;
+			// torque.z = 0;
 			
-			rb.AddRelativeTorque(torque);
-			rb.AddRelativeForce(Vector3.forward * 0.2f * vectorsAverage.magnitude);
+			// rb.AddRelativeTorque(torque);
+			// rb.AddRelativeForce(Vector3.forward * 0.2f * vectorsAverage.magnitude);
 
-			drawAgentVector(gameObject, vectorsAverage, () => Color.green);
+			Vector3 requiredAngularAcceleration = anglePIDController
+				.ComputeRequiredAngularAcceleration(
+					gameObject.transform.rotation,
+					rot,
+					rb.angularVelocity,
+					Time.fixedDeltaTime
+				);
+			requiredAngularAcceleration.z = 0;
+			rb.AddTorque(requiredAngularAcceleration * vectorsAverage.magnitude * 0.01f, ForceMode.Acceleration);
+			rb.AddRelativeForce(Vector3.forward * vectorsAverage.magnitude);
+
+			drawAgentVector(gameObject, gameObject.transform.InverseTransformDirection(vectorsAverage), () => Color.green);
 		}
 	}
 	void drawAgentVector (GameObject gameObj, Vector3 vec, Func<Color> colorFn) {

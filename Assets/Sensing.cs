@@ -4,6 +4,7 @@ using UnityEngine;
 using System;
 using Functional;
 using RayNav;
+using BoidsNS;
 public class Sensing : MonoBehaviour {
 
 	private Rigidbody rb;
@@ -24,6 +25,8 @@ public class Sensing : MonoBehaviour {
 	//private string[] feelerNames;
 	private AvoidanceData? maybeAvoidanceData = null;
 
+	private Navigator navigator;
+
 	void Start () {
 		feelerDirs = F.Map(Feeler.getDirection, feelers);
 		//feelerNames = F.Map(Feeler.getName, feelers);
@@ -31,6 +34,7 @@ public class Sensing : MonoBehaviour {
 		agentObj = gameObject;
 		// agentObj = gameObject.transform.GetChild(0).gameObject;
 		rb = agentObj.GetComponent(typeof(Rigidbody)) as Rigidbody;
+		Navigator navigator = agentObj.GetComponent(typeof(Navigator)) as Navigator;
 		// rb.velocity = new Vector3(
 		// 	UnityEngine.Random.Range(-1, 1),
 		// 	0,
@@ -41,7 +45,8 @@ public class Sensing : MonoBehaviour {
 
 	IEnumerator AvoidanceRoutine () {
 
-		maybeAvoidanceData = Avoidance();
+		// maybeAvoidanceData = Avoidance();
+		navigator.RegisterInfluence("obstacles", Avoidance());
 		yield return new WaitForSeconds(1);
 		StartCoroutine(AvoidanceRoutine());
 	}
@@ -76,7 +81,7 @@ public class Sensing : MonoBehaviour {
 
 	struct AvoidanceData {	public Vector3 torque; public float magnitude; }
 
-	AvoidanceData? Avoidance () {
+	InfluencesData? Avoidance () {
 		FeelerData?[] castResults = F.Map(feelerDir => cast(agentObj, feelerDir), feelerDirs); 
 		hitting = F.Map(result => result.HasValue, castResults);
 
@@ -98,7 +103,7 @@ public class Sensing : MonoBehaviour {
 			AvoidanceData data;
 			data.torque = torque;
 			data.magnitude = outVector.magnitude;
-			return data;
+			return new InfluencesData(averageReflectionDefault);
 		}
 		else {
 			return null;
@@ -116,22 +121,22 @@ public class Sensing : MonoBehaviour {
 
 	void FixedUpdate () {
 
-		Vector3 outVector;
-		Vector3 expOutVector;
+		// Vector3 outVector;
+		// Vector3 expOutVector;
 
-		if (maybeAvoidanceData.HasValue) {
-			AvoidanceData data = maybeAvoidanceData.Value;
-			rb.AddRelativeTorque(data.torque * avoidanceStrength);
-			rb.AddRelativeForce(Vector3.forward * data.magnitude);
-		}
-		else {
-			outVector = Vector3.forward;
-			float zRotation = rb.rotation.eulerAngles.z;
-			zRotation = zRotation / 360;
-			zRotation = zRotation > 0.5 ? -(1 - zRotation) : zRotation;
-			rb.AddRelativeTorque(new Vector3(0, 0, -zRotation * 0.1f));
-			rb.AddRelativeForce(Vector3.forward * outVector.magnitude);
-		}
+		// if (maybeAvoidanceData.HasValue) {
+		// 	AvoidanceData data = maybeAvoidanceData.Value;
+		// 	rb.AddRelativeTorque(data.torque * avoidanceStrength);
+		// 	rb.AddRelativeForce(Vector3.forward * data.magnitude);
+		// }
+		// else {
+		// 	outVector = Vector3.forward;
+		// 	float zRotation = rb.rotation.eulerAngles.z;
+		// 	zRotation = zRotation / 360;
+		// 	zRotation = zRotation > 0.5 ? -(1 - zRotation) : zRotation;
+		// 	rb.AddRelativeTorque(new Vector3(0, 0, -zRotation * 0.1f));
+		// 	rb.AddRelativeForce(Vector3.forward * outVector.magnitude);
+		// }
 		
 	}
 

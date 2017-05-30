@@ -78,7 +78,7 @@ public class Boids : MonoBehaviour {
 		Vector3[] influences = { cohesion, separation, alignment, mainZone };
 		Vector3 sum = F.Reduce(Vector3.zero, (acc, vec) => acc + vec, influences);
 
-		Vector3 localSum = boid.gameObject.transform.InverseTransformDirection(sum);
+		Vector3 localSum = sum;
 		//rb.angularDrag = 1;
 		//rb.AddRelativeTorque(Vector3.forward - new Vector3(-localSum.y, -localSum.x, 0));
 		// rb.AddRelativeTorque(new Vector3(-localSum.y, -localSum.x, 0));
@@ -88,10 +88,10 @@ public class Boids : MonoBehaviour {
 		torque.z = 0;
 
 		InfluencesData influencesData;
-		influencesData.torque = torque;
-		influencesData.magnitude = sum.magnitude;
+		// influencesData.torque = torque;
+		// influencesData.magnitude = sum.magnitude;
 		influencesData.vector = localSum;
-		influencesData.name = "flock";
+		// influencesData.name = "flock";
 		return influencesData;
 	}
 
@@ -101,8 +101,8 @@ public class Boids : MonoBehaviour {
 		float magnitude;
 
 		if (boid.influencesData.HasValue) {
-			torque = boid.influencesData.Value.torque;
-			magnitude = boid.influencesData.Value.magnitude;
+			// torque = boid.influencesData.Value.torque;
+			// magnitude = boid.influencesData.Value.magnitude;
 
 			// rb.AddRelativeTorque(torque);
 			// rb.AddRelativeForce(Vector3.forward * 0.2f);
