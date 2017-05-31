@@ -23,7 +23,7 @@ public class Navigator : MonoBehaviour {
 		influences.Add(influence);
 	}
 
-	Vector3 GetTorque (Vector3 eulerAngle) {
+	Vector3 GetOrientation (Vector3 eulerAngle) {
 		Vector3 bla = eulerAngle / 360;
 		return new Vector3(
 			bla.x > 0.5 ? -(1 - bla.x) : bla.x,
@@ -60,15 +60,18 @@ public class Navigator : MonoBehaviour {
 			// rb.AddRelativeTorque(torque);
 			// rb.AddRelativeForce(Vector3.forward * 0.2f * vectorsAverage.magnitude);
 
-			Vector3 requiredAngularAcceleration = anglePIDController
-				.ComputeRequiredAngularAcceleration(
-					gameObject.transform.rotation,
-					rot,
-					rb.angularVelocity,
-					Time.fixedDeltaTime
-				);
-			requiredAngularAcceleration.z = 0;
-			rb.AddTorque(requiredAngularAcceleration * steeringAverage * 0.01f, ForceMode.Acceleration);
+			// Vector3 requiredAngularAcceleration = anglePIDController
+			// 	.ComputeRequiredAngularAcceleration(
+			// 		gameObject.transform.rotation,
+			// 		rot,
+			// 		rb.angularVelocity,
+			// 		Time.fixedDeltaTime
+			// 	);
+			// requiredAngularAcceleration.z = 0;
+			// rb.AddTorque(requiredAngularAcceleration * steeringAverage * 0.01f, ForceMode.Acceleration);
+
+			rb.AddRelativeTorque(GetDirection(vectorsAverage) * 0.5f);
+
 			rb.AddRelativeForce(Vector3.forward * vectorsAverage.magnitude);
 
 			rb.velocity = ClampMagnitudeMin(rb.velocity, minVelocityMagnitude);
@@ -78,6 +81,35 @@ public class Navigator : MonoBehaviour {
 				maxPrio > 0 ? Color.yellow : Color.green
 			);
 		}
+	}
+	Vector3 GetDirection (Vector3 dir) {
+		float side = 1/-Mathf.Sqrt(2);
+		Vector3 FORWARD_DOWN_LEFT = new Vector3(-side, -side, side);
+		Vector3 FORWARD_TOP_LEFT = new Vector3(-side, side, side);
+		Vector3 FORWARD_DOWN_RIGHT = new Vector3(side, -side, side);
+		Vector3 FORWARD_TOP_RIGHT = new Vector3(side, side, side);
+
+
+		Quaternion diff = Quaternion.FromToRotation(Vector3.forward, gameObject.transform.InverseTransformDirection(dir));
+		Vector3 euler = diff.eulerAngles;
+		Vector3 orientation = GetOrientation(euler);
+
+		// print(orientation);
+
+		Vector3 result;
+
+		if (orientation.y < 0 && orientation.x > 0) { result = Quaternion.FromToRotation(Vector3.forward, FORWARD_DOWN_LEFT).eulerAngles; }
+		else if (orientation.y < 0 && orientation.x < 0) { result = Quaternion.FromToRotation(Vector3.forward, FORWARD_TOP_LEFT).eulerAngles; }
+		else if (orientation.y > 0 && orientation.x > 0) { result = Quaternion.FromToRotation(Vector3.forward, FORWARD_DOWN_RIGHT).eulerAngles; }
+		else if (orientation.y > 0 && orientation.x < 0) { result = Quaternion.FromToRotation(Vector3.forward, FORWARD_TOP_RIGHT).eulerAngles; }
+		else if (orientation.y < 0 && orientation.x == 0) { result = Quaternion.FromToRotation(Vector3.forward, Vector3.left).eulerAngles; }
+		else if (orientation.y > 0 && orientation.x == 0) { result = Quaternion.FromToRotation(Vector3.forward, Vector3.right).eulerAngles; }
+		else if (orientation.y == 0 && orientation.x > 0) { result = Quaternion.FromToRotation(Vector3.forward, Vector3.down).eulerAngles; }
+		else if (orientation.y == 0 && orientation.x < 0) { result = Quaternion.FromToRotation(Vector3.forward, Vector3.up).eulerAngles; }
+		else { result = Vector3.zero; }
+
+		print(orientation);
+		return result;
 	}
 
 	Vector3 ClampMagnitudeMax (Vector3 vec, float magnitude) {
