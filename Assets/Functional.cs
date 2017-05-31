@@ -6,7 +6,7 @@ using System.Linq;
 namespace Functional {
 	class F {
 
-		static public T[] Times<T> (int times, Func<int, T> fn) {
+		static public IEnumerable<T> Times<T> (int times, Func<int, T> fn) {
 			T[] array = new T[times];
 
 			for (int i = 0; i < times; i++)
@@ -17,29 +17,33 @@ namespace Functional {
 			return array;
 		}
 
-		// static public T[] Reject<T> (Func<T, bool> fn, T[] array) {
+		// static public IEnumerable<T> Reject<T> (Func<T, bool> fn, IEnumerable<T> array) {
 		// 	return array.
 		// }
 
-		static public void ForEach<T> (Action<T, int> fn, T[] array) {
-			for (int i = 0; i < array.Length; i++)
+		// not functional
+		static public void ForEach<T> (Action<T, int> fn, IEnumerable<T> array) {
+			int index = 0;
+			foreach (var item in array)
 			{
-				fn(array[i], i);
+				fn(item, index);
+				index ++;
 			}
 		}
-		static public void ForEach<T> (Action<T> fn, T[] array) {
-			for (int i = 0; i < array.Length; i++)
+		static public void ForEach<T> (Action<T> fn, IEnumerable<T> array) {
+			foreach (var item in array)
 			{
-				fn(array[i]);
+				fn(item);
 			}
 		}
+		//
 
-		static public T[] FilterOutNulls<T> (T?[] array) where T:struct {
-			T?[] filtered = F.Filter((entry) => entry.HasValue, array);
+		static public IEnumerable<T> FilterOutNulls<T> (IEnumerable<T?> array) where T:struct {
+			IEnumerable<T?> filtered = F.Filter((entry) => entry.HasValue, array);
 			return F.Map(entry => entry.Value, filtered);
 		}
 
-		static public T? Find<T> (Func<T, bool> fn, T[] array) where T:struct {
+		static public T? Find<T> (Func<T, bool> fn, IEnumerable<T> array) where T:struct {
 			try {
 				T result = array.First(fn);
 				return result;
@@ -49,33 +53,47 @@ namespace Functional {
 			}
 
 		}
-
-		static public T1[] Map<T, T1> (Func<T, T1> fn, T[] array) { return array.Select(fn).ToArray(); }
-		static public T[] Filter<T> (Func<T, bool> fn, T[] array) { return array.Where(fn).ToArray(); }
+		static public T Identity<T> (T val) { return val; }
+		static public IEnumerable<T1> Map<T, T1> (Func<T, T1> fn, IEnumerable<T> array) { return array.Select(fn); }
 		static public IEnumerable<T> Filter<T> (Func<T, bool> fn, IEnumerable<T> enumerable) { return enumerable.Where(fn); }
 		static public List<T> Filter<T> (Func<T, bool> fn, List<T> enumerable) { return enumerable.Where(fn).ToList(); }
 
-		static public T[] Copy<T> (T[] array, int start, int length) {
-			T[] dest = new T[array.Length - 1];
-			Array.Copy(array, start, dest, 0, length);
-			return dest;
+		static public IEnumerable<T> Copy<T> (IEnumerable<T> array, int start, int length) {
+			return array.Skip(start).Take(length);
 		}
 
-		static public T Head<T> (T[] array) {
-			return array[0];
+		static public T Head<T> (IEnumerable<T> array) {
+			return array.First();
 		}
 
-		static public T[] Tail<T> (T[] array) {
-			return F.Copy(array, 1, array.Length - 1);
+		static public IEnumerable<T> Tail<T> (IEnumerable<T> array) {
+			return F.Copy(array, 1, array.Count() - 1);
 		}
 
-		static public B Reduce<T, B> (B baseAcc, Func<B, T, B> fn, T[] array) { return array.Aggregate(baseAcc, fn); }
+		static public int Length<T> (IEnumerable<T> collection) {
+			return collection.Count();
+		}
+
+		static public T Nth<T> (int index, IEnumerable<T> collection) {
+			return collection.ElementAt(index);
+		}
+
+		static public B Reduce<T, B> (B baseAcc, Func<B, T, B> fn, IEnumerable<T> array) { return array.Aggregate(baseAcc, fn); }
 		static public Func<T1, T> Compose<T1, T> (Func<object, object>[] fnArray) where T:class {
 			Func<T1, T> toExecute = (T1 val) => {
 				return F.Reduce(val, (object acc, Func<object, object> current) => current(acc), fnArray) as T;
 			};
 
 			return toExecute;
+		}
+
+		// static public Func<T> Curry<T1, T> (Func<T1, T> fn) {
+
+		static public Func<T1, T3> Compose<T1, T2, T3> (Func<T2, T3> fn2, Func<T1, T2> fn1) {
+			return (a) => fn2(fn1(a));
+		}
+		static public Func<T1, T4> Compose<T1, T2, T3, T4> (Func<T3, T4> fn3, Func<T2, T3> fn2, Func<T1, T2> fn1) {
+			return (a) => fn3(fn2(fn1(a)));
 		}
 	}
 }

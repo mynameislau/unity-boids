@@ -5,14 +5,17 @@ using System;
 using Functional;
 using RayNav;
 using BoidsNS;
+using MathUtils;
 public class Sensing : MonoBehaviour {
 
-	private Rigidbody rb;
-	private GameObject agentObj;
+	// private Rigidbody rb;
 	// Use this for initialization
 	private const float Infinity = 1/0f;
-	private const float feelerLength = 3;
+	private const float feelerLength = 5;
 	private const float avoidanceStrength = 0.1f;
+	private const float detectionFrequency = 0.5f;
+	private Vector3? debugAverageReflection;
+	private Vector3? debugAverageFeelerDirs;
 	private Feeler[] feelers = {
 		new Feeler("top", Normalize(new Vector3(0, 1, 1))),
 		new Feeler("bottom", Normalize(new Vector3(0, -1, 1))),
@@ -20,8 +23,8 @@ public class Sensing : MonoBehaviour {
 		new Feeler("left", Normalize(new Vector3(-1, 0, 1))),
 		new Feeler("forward", Vector3.forward)
 	};
-	private bool[] hitting;
-	private Vector3[] feelerDirs;
+	private IEnumerable<bool> hitting;
+	private IEnumerable<Vector3> feelerDirs;
 	//private string[] feelerNames;
 	private AvoidanceData? maybeAvoidanceData = null;
 
@@ -30,11 +33,9 @@ public class Sensing : MonoBehaviour {
 	void Start () {
 		feelerDirs = F.Map(Feeler.getDirection, feelers);
 		//feelerNames = F.Map(Feeler.getName, feelers);
-
-		agentObj = gameObject;
-		// agentObj = gameObject.transform.GetChild(0).gameObject;
-		rb = agentObj.GetComponent(typeof(Rigidbody)) as Rigidbody;
-		Navigator navigator = agentObj.GetComponent(typeof(Navigator)) as Navigator;
+		// gameObject = gameObject.transform.GetChild(0).gameObject;
+		// rb = gameObject.GetComponent(typeof(Rigidbody)) as Rigidbody;
+		navigator = gameObject.GetComponent(typeof(Navigator)) as Navigator;
 		// rb.velocity = new Vector3(
 		// 	UnityEngine.Random.Range(-1, 1),
 		// 	0,
@@ -46,8 +47,8 @@ public class Sensing : MonoBehaviour {
 	IEnumerator AvoidanceRoutine () {
 
 		// maybeAvoidanceData = Avoidance();
-		navigator.RegisterInfluence("obstacles", Avoidance());
-		yield return new WaitForSeconds(1);
+		navigator.RegisterInfluence(new Influence("obstacles", Avoidance(), 1));
+		yield return new WaitForSeconds(detectionFrequency);
 		StartCoroutine(AvoidanceRoutine());
 	}
 
@@ -62,15 +63,15 @@ public class Sensing : MonoBehaviour {
 		debugFeelers();
 		if (maybeAvoidanceData.HasValue) {
 			//debug stuff
-			drawAgentVector(maybeAvoidanceData.Value.torque * 10f, () => Color.yellow);
+			// drawAgentVector(maybeAvoidanceData.Value.torque * 10f, () => Color.yellow);
 			//
 		}
-	}
-
-	Vector3? Average (Vector3[] vectors) {
-		if (vectors.Length == 0) { return null; }
-		Vector3 sum = F.Reduce(Vector3.zero, (acc, curr) => acc + curr, vectors);
-		return sum / vectors.Length;
+		if (debugAverageReflection.HasValue) {
+			drawAgentVector(debugAverageReflection.Value, () => Color.magenta);
+		}
+		if (debugAverageFeelerDirs.HasValue) {
+			drawAgentVector(debugAverageFeelerDirs.Value, () => Color.cyan);
+		}
 	}
 
 	Vector3 ExponentialSimple (Vector3 vec) {
@@ -81,29 +82,44 @@ public class Sensing : MonoBehaviour {
 
 	struct AvoidanceData {	public Vector3 torque; public float magnitude; }
 
-	InfluencesData? Avoidance () {
-		FeelerData?[] castResults = F.Map(feelerDir => cast(agentObj, feelerDir), feelerDirs); 
-		hitting = F.Map(result => result.HasValue, castResults);
+	InfluenceData? Avoidance () {
+		IEnumerable<FeelerData> castResults = F.Map(feelerDir => cast(gameObject, feelerDir), feelerDirs); 
+		hitting = F.Map(result => result.positive, castResults);
 
-		FeelerData[] filtered = F.FilterOutNulls(castResults);
+		IEnumerable<FeelerData> positives = F.Filter(result => result.positive, castResults);
+		IEnumerable<FeelerData> negatives = F.Filter(result => !result.positive, castResults);
 
-		if (filtered.Length > 0) {
-			Vector3? averageReflection = Average(F.Map(current => current.reflection, filtered));
-			Vector3 averageReflectionDefault = averageReflection.HasValue ? averageReflection.Value : Vector3.zero;
-			Vector3? average = Average(F.Map(current => current.hitData, filtered));
-			Vector3 averageDefault = average.HasValue ? average.Value : Vector3.zero;
+		// TODO : Mixer les reflections pour les feelers qui ont un résultat, et les directions brutes de ceux qui n'ont pas de résultat, ca nous donne un bon chemin...
+		debugAverageReflection = null;
+		debugAverageFeelerDirs = null;
 
-			Vector3 outVector = averageDefault;
+		if (F.Length(positives) > 0) {
+			Vector3 averageReflection = V.Average(F.Map(current => current.reflection.Value, positives)).Value;
+			Vector3? averageUntriggeredFeelerDirs = V.Average(F.Map(current => current.feelerDir, negatives));
+			debugAverageReflection = averageReflection;
+
+			if (averageUntriggeredFeelerDirs.HasValue) {
+				float ln = averageReflection.magnitude;
+				averageReflection = Normalize(Normalize(averageReflection) + Normalize(averageUntriggeredFeelerDirs.Value)) * ln;
+				// averageReflection = V.Average(new Vector3[] { averageReflection, averageUntriggeredFeelerDirs.Value }).Value;
+				debugAverageFeelerDirs = averageUntriggeredFeelerDirs;
+			}
+
+
+			// Vector3? average = V.Average(F.Map(current => current.hitData, filtered));
+			// Vector3 averageDefault = average.HasValue ? average.Value : Vector3.zero;
+
+			// Vector3 outVector = averageDefault;
 
 			// expOutVector = ExponentialSimple(outVector);
-			Quaternion rot = Quaternion.FromToRotation(Vector3.forward, averageReflectionDefault);
-			Vector3 torque = GetTorque(rot.eulerAngles);
-			torque.z = 0;
+			// Quaternion rot = Quaternion.FromToRotation(Vector3.forward, averageReflectionDefault);
+			// Vector3 torque = GetTorque(rot.eulerAngles);
+			// torque.z = 0;
 
-			AvoidanceData data;
-			data.torque = torque;
-			data.magnitude = outVector.magnitude;
-			return new InfluencesData(averageReflectionDefault);
+			// AvoidanceData data;
+			// data.torque = torque;
+			// data.magnitude = outVector.magnitude;
+			return new InfluenceData(gameObject.transform.TransformDirection(averageReflection));
 		}
 		else {
 			return null;
@@ -146,43 +162,58 @@ public class Sensing : MonoBehaviour {
 		return vec * ((float)exp);
 	}
 
-	FeelerData feelerData (Vector3 vec, Vector3 normal) {
-		float linear = vec.magnitude / feelerLength;
-		Vector3 norm = Normalize(vec);
-		FeelerData data;
-		data.hitData = norm * linear;
-		data.reflection = Vector3.Reflect(data.hitData, normal);
-		return data;
-	}
+	// FeelerData feelerData (bool positive, Vector3 vec = null, Vector3 normal = null) {
+		
+	// }
 
 	struct FeelerData
 	{
-		public Vector3 hitData;
-		public Vector3 reflection;
+		public Vector3? hitData;
+		public Vector3? reflection;
+
+		public bool positive;
+
+		public Vector3 feelerDir;
+
+		public FeelerData (bool pPositive, Vector3 f, Vector3? mVec = null, Vector3? mNormal = null) {
+			positive = pPositive;
+			feelerDir = f;
+			if (mVec.HasValue) {
+				float linear = mVec.Value.magnitude / feelerLength;
+				Vector3 norm = Normalize(mVec.Value);
+				hitData = norm * linear;
+				reflection = Vector3.Reflect(hitData.Value, mNormal.Value);
+				reflection = Vector3.Slerp(Vector3.forward, reflection.Value, 1 - reflection.Value.magnitude);
+			}
+			else {
+				hitData =  null;
+				reflection = null;
+			}
+		}
 	}
 
-	FeelerData? cast(GameObject gameObj, Vector3 localDir) {
+	FeelerData cast(GameObject gameObj, Vector3 feelerDir) {
 		Vector3 pos = gameObj.transform.TransformPoint(Vector3.zero);
-		Vector3 dir = gameObj.transform.TransformDirection(localDir);
+		Vector3 dir = gameObj.transform.TransformDirection(feelerDir);
 		RaycastHit rh = new RaycastHit();
 		if (Physics.Raycast(pos, dir, out rh, feelerLength)) {
 			Vector3 local =  gameObj.transform.InverseTransformDirection(rh.point - pos);
-			return feelerData(local, gameObj.transform.InverseTransformDirection(rh.normal));
+			return new FeelerData(true, feelerDir, local, gameObj.transform.InverseTransformDirection(rh.normal));
 		}
 		else {
-			return null;
+			return new FeelerData(false, feelerDir);
 		}
 	}
 
 	void drawAgentVector (Vector3 vec, Func<Color> colorFn) {
-			Vector3 pos = agentObj.transform.TransformPoint(Vector3.zero);
-			Vector3 dir = agentObj.transform.TransformDirection(vec);
+			Vector3 pos = gameObject.transform.TransformPoint(Vector3.zero);
+			Vector3 dir = gameObject.transform.TransformDirection(vec);
 			Debug.DrawLine(pos, pos + dir, colorFn());
 	}
 
 	void debugFeelers () {
 		F.ForEach((feelerDir, index) => {
-			drawAgentVector(feelerDir * feelerLength, () => hitting[index] ? Color.red : Color.grey);
+			drawAgentVector(feelerDir * feelerLength, () => F.Nth(index, hitting) ? Color.red : Color.grey);
 		}, feelerDirs);
 	}
 }

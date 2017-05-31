@@ -4,23 +4,25 @@ using UnityEngine;
 
 namespace BoidsNS
 {
-    public struct InfluencesData {
+    public struct InfluenceData {
     // public Vector3 torque;
     // public float magnitude;
+    public float steeringModifer;
     public Vector3 vector;
 
-    public InfluencesData (Vector3 v) {
+    public InfluenceData (Vector3 v, float s = 1) {
       vector = v;
+      steeringModifer = s;
     }
   }
 
   public struct Influence {
 		public string name;
     public int priority;
-		public InfluencesData? influence;
-		public Influence (string n, InfluencesData? i, int p = 0) {
+		public InfluenceData? influenceData;
+		public Influence (string n, InfluenceData? i, int p = 0) {
       name = n;
-      influence = i;
+      influenceData = i;
       priority = p;
     }
 	}

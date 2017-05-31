@@ -5,9 +5,9 @@ using UnityEngine;
 using BoidsNS;
 using System.Linq;
 using Functional;
+using MathUtils;
 public class Boids : MonoBehaviour {
-	public GameObject boid;
-	private Boid[] boids;
+	private static List<Boid> boids = new List<Boid>();
 	public AnimationClip clip;
 	private const int flockRadius = 100;
 	public float boidSize = 1f;
@@ -17,46 +17,47 @@ public class Boids : MonoBehaviour {
 	public float alignmentWeight = 0.1f;
 	public float cohesionWeight = 1f;
 	public float separationWeight = 1f;
+	public float influencesRecalcFrequency = 1f;
 	public float boidDrag = 1f;
+	private Boid boid;
 
 	void Start () {
-		boids = F.Times<Boid>(nbBoids, createBoid);
-		StartCoroutine(ComputeInfluences());
+		//boids = F.Times<Boid>(nbBoids, createBoid);
+		boid = createBoid();
+		boids.Add(boid);
+		StartCoroutine(ComputeInfluences(boid));
 	}
 
-	IEnumerator ComputeInfluences () {
-		foreach (var boid in boids)
-		{
-			boid.navigator.RegisterInfluence("flock", Influences(boid));
-			yield return null;
-		}
+	IEnumerator ComputeInfluences (Boid boid) {
+		// foreach (var boid in boids)
+		// {
+		boid.navigator.RegisterInfluence(new Influence("flock", Influences(boid)));
+		// }
 
 		yield return new WaitForEndOfFrame();
-		yield return new WaitForSeconds(0.2f);
-		StartCoroutine(ComputeInfluences());
+		yield return new WaitForSeconds(influencesRecalcFrequency);
+		StartCoroutine(ComputeInfluences(boid));
 	}
 
 	Boid createBoid (int n = 0) {
-		GameObject boidGO = UnityEngine.Object.Instantiate(boid);
-		boidGO.transform.rotation = Quaternion.Euler(0, 0, 0);
-		boidGO.transform.parent = gameObject.transform;
-		Rigidbody rb = boidGO.GetComponent(typeof(Rigidbody)) as Rigidbody;
-		Navigator navigator = boidGO.GetComponent(typeof(Navigator)) as Navigator;
+		//GameObject gameObject = UnityEngine.Object.Instantiate(boid);
+		gameObject.transform.rotation = Quaternion.Euler(0, 0, 0);
+		gameObject.transform.parent = gameObject.transform;
+		Rigidbody rb = gameObject.GetComponent(typeof(Rigidbody)) as Rigidbody;
+		Navigator navigator = gameObject.GetComponent(typeof(Navigator)) as Navigator;
 		rb.useGravity = false;
 		rb.drag = boidDrag;
-		boidGO.transform.position = new Vector3(
-			UnityEngine.Random.Range(-spawnRadius, spawnRadius),
-			UnityEngine.Random.Range(-spawnRadius, spawnRadius),
-			UnityEngine.Random.Range(-spawnRadius, spawnRadius)
-		);
+		// gameObject.transform.position = new Vector3(
+		// 	UnityEngine.Random.Range(-spawnRadius, spawnRadius),
+		// 	UnityEngine.Random.Range(-spawnRadius, spawnRadius),
+		// 	UnityEngine.Random.Range(-spawnRadius, spawnRadius)
+		// );
 
-		return new Boid(boidGO, rb, navigator);
+		return new Boid(gameObject, rb, navigator);
 	}
 
 	void FixedUpdate () {
-		if (boids.Length > 0) {
-			F.ForEach(updateBoid, boids);
-		}
+		updateBoid(boid);
 	}
 
 	Vector3 GetTorque (Vector3 eulerAngle) {
@@ -67,8 +68,8 @@ public class Boids : MonoBehaviour {
 			bla.z > 0.5 ? -(1 - bla.z) : bla.z
 		);
 	}
-	InfluencesData Influences (Boid boid) {
-		Rigidbody rb = boid.body;
+	InfluenceData Influences (Boid boid) {
+		// Rigidbody rb = boid.body;
 
 		Vector3 cohesion = Cohesion(boid);
 		Vector3 separation = Separation(boid);
@@ -78,35 +79,30 @@ public class Boids : MonoBehaviour {
 		Vector3[] influences = { cohesion, separation, alignment, mainZone };
 		Vector3 sum = F.Reduce(Vector3.zero, (acc, vec) => acc + vec, influences);
 
-		Vector3 localSum = sum;
+		Vector3 localSum = boid.gameObject.transform.InverseTransformDirection(sum);
 		//rb.angularDrag = 1;
 		//rb.AddRelativeTorque(Vector3.forward - new Vector3(-localSum.y, -localSum.x, 0));
 		// rb.AddRelativeTorque(new Vector3(-localSum.y, -localSum.x, 0));
 		//boid.gameObject.transform.rotation = Quaternion.LookRotation(localSum);
-		Quaternion rot = Quaternion.FromToRotation(Vector3.forward, localSum);
-		Vector3 torque = GetTorque(rot.eulerAngles) * 0.1f;
-		torque.z = 0;
+		// Quaternion rot = Quaternion.FromToRotation(Vector3.forward, localSum);
+		// Vector3 torque = GetTorque(rot.eulerAngles) * 0.1f;
+		// torque.z = 0;
 
-		InfluencesData influencesData;
-		// influencesData.torque = torque;
-		// influencesData.magnitude = sum.magnitude;
-		influencesData.vector = localSum;
-		// influencesData.name = "flock";
-		return influencesData;
+		return new InfluenceData(sum);
 	}
 
 	void updateBoid (Boid boid) {
-		Rigidbody rb = boid.body;
-		Vector3 torque;
-		float magnitude;
+		// Rigidbody rb = boid.body;
+		// Vector3 torque;
+		// float magnitude;
 
-		if (boid.influencesData.HasValue) {
+		if (boid.influenceData.HasValue) {
 			// torque = boid.influencesData.Value.torque;
 			// magnitude = boid.influencesData.Value.magnitude;
 
 			// rb.AddRelativeTorque(torque);
 			// rb.AddRelativeForce(Vector3.forward * 0.2f);
-			// drawAgentVector(boid.gameObject, boid.influencesData.Value.vector, () => Color.green);
+			// drawAgentVector(boid.gameObject, boid.influenceData.Value.vector, () => Color.green);
 		}
 		// drawAgentVector(boid.gameObject, localSum , () => Color.red);
 
@@ -135,23 +131,23 @@ public class Boids : MonoBehaviour {
 	}
 
 	Vector3? AverageNeighbours (float radius, Boid boid) {
-		Boid[] neighs = neighbours(
+		IEnumerable<Boid> neighs = neighbours(
 			radius,
 			everyBoidsBut(boids, boid),
 			boid
 		);
 
-		return averageVectors(boidPositions(neighs));
+		return V.Average(boidPositions(neighs));
 	}
 
 	Vector3 Alignment (Boid boid) {
-		Boid[] neighs = neighbours(
+		IEnumerable<Boid> neighs = neighbours(
 			flockRadius,
 			boids,
 			boid
 		);
 
-		return averageVectors(boidVelocities(neighs)).Value * alignmentWeight;
+		return V.Average(boidVelocities(neighs)).Value * alignmentWeight;
 	}
 
 	Vector3 MainZone (Boid boid) {
@@ -185,25 +181,19 @@ public class Boids : MonoBehaviour {
 		}
 	}
 
-	Boid[] everyBoidsBut (Boid[] boidList, Boid boid) {
+	IEnumerable<Boid> everyBoidsBut (IEnumerable<Boid> boidList, Boid boid) {
 		return F.Filter(curr => curr != boid, boidList);
-	}
-
-	Vector3? averageVectors (Vector3[] vectors) {
-		if (vectors.Length == 0) { return null; }
-		Vector3 sum = F.Reduce(new Vector3(0,0,0), (acc, curr) => acc + curr, vectors);
-		return sum / vectors.Length;
 	}
 
 	Vector3 boidPosition (Boid boid) { return boid.body.position; }
 
-	Vector3[] boidPositions (Boid[] boidList) { return F.Map(boidPosition, boidList); }
+	IEnumerable<Vector3> boidPositions (IEnumerable<Boid> boidList) { return F.Map(boidPosition, boidList); }
 
 	Vector3 boidVelocity (Boid boid) { return boid.body.velocity; }
 
-	Vector3[] boidVelocities (Boid[] boidList) { return F.Map(boidPosition, boidList); }
+	IEnumerable<Vector3> boidVelocities (IEnumerable<Boid> boidList) { return F.Map(boidPosition, boidList); }
 
-	Boid[] neighbours (float radius, Boid[] otherBoids, Boid boid) {
+	IEnumerable<Boid> neighbours (float radius, IEnumerable<Boid> otherBoids, Boid boid) {
 		return F.Filter(
 			currentBoid => Vector3.Distance(boid.body.position, currentBoid.body.position) < radius,
 			otherBoids

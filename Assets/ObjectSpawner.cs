@@ -12,7 +12,7 @@ public class ObjectSpawner : MonoBehaviour {
 	// Use this for initialization
 	void Start () {
 		array = new GameObject[objNB];
-		for (int i = 0; i < objNB; i++)
+		for (int i = 0; i < objNB - 1; i++)
 		{
 			GameObject child = UnityEngine.Object.Instantiate(obj);
 			array[i] = child;

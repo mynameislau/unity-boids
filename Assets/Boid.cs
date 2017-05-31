@@ -8,7 +8,7 @@ namespace BoidsNS
     public Rigidbody body;
     public Navigator navigator;
     public GameObject gameObject;
-    public InfluencesData? influencesData = null;
+    public InfluenceData? influenceData = null;
 
     public Boid (GameObject go, Rigidbody rb, Navigator n) {
       body = rb;
