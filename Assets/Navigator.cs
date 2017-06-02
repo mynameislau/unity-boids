@@ -77,37 +77,50 @@ public class Navigator : MonoBehaviour {
 			rb.velocity = ClampMagnitudeMin(rb.velocity, minVelocityMagnitude);
 			rb.velocity = ClampMagnitudeMax(rb.velocity, maxVelocityMagnitude);
 
-			drawAgentVector(gameObject, gameObject.transform.InverseTransformDirection(vectorsAverage), () =>
-				maxPrio > 0 ? Color.yellow : Color.green
-			);
+			// drawAgentVector(gameObject, gameObject.transform.InverseTransformDirection(vectorsAverage), () =>
+			// 	maxPrio > 0 ? Color.yellow : Color.green
+			// );
 		}
 	}
 	Vector3 GetDirection (Vector3 dir) {
-		float side = 1/-Mathf.Sqrt(2);
-		Vector3 FORWARD_DOWN_LEFT = new Vector3(-side, -side, side);
-		Vector3 FORWARD_TOP_LEFT = new Vector3(-side, side, side);
-		Vector3 FORWARD_DOWN_RIGHT = new Vector3(side, -side, side);
-		Vector3 FORWARD_TOP_RIGHT = new Vector3(side, side, side);
+		float side = 1/Mathf.Sqrt(2);
+		Vector3 DOWN_LEFT = Vector3.Normalize(new Vector3(-1, -1, 0));
+		Vector3 TOP_LEFT = Vector3.Normalize(new Vector3(-1, 1, 0));
+		Vector3 DOWN_RIGHT = Vector3.Normalize(new Vector3(1, -1, 0));
+		Vector3 TOP_RIGHT = Vector3.Normalize(new Vector3(1, 1, 0));
 
 
-		Quaternion diff = Quaternion.FromToRotation(Vector3.forward, gameObject.transform.InverseTransformDirection(dir));
+		// Quaternion diff = Quaternion.FromToRotation(Vector3.forward, gameObject.transform.InverseTransformDirection(dir));
+		Quaternion diff = Quaternion.LookRotation(dir, Vector3.up);
 		Vector3 euler = diff.eulerAngles;
 		Vector3 orientation = GetOrientation(euler);
+
+		drawAgentVector(gameObject, diff * Vector3.forward * 10f, () => Color.yellow);
 
 		// print(orientation);
 
 		Vector3 result;
+		if (orientation.y < 0 && orientation.x >= 0) { result = TOP_RIGHT; }
+		else if (orientation.y >= 0 && orientation.x >= 0) { result = TOP_LEFT; }
+		else if (orientation.y < 0 && orientation.x < 0) { result = DOWN_RIGHT; }
+		else if (orientation.y >= 0 && orientation.x < 0) { result = DOWN_LEFT; }
+		else { result = Vector3.zero; } 
 
-		if (orientation.y < 0 && orientation.x > 0) { result = Quaternion.FromToRotation(Vector3.forward, FORWARD_DOWN_LEFT).eulerAngles; }
-		else if (orientation.y < 0 && orientation.x < 0) { result = Quaternion.FromToRotation(Vector3.forward, FORWARD_TOP_LEFT).eulerAngles; }
-		else if (orientation.y > 0 && orientation.x > 0) { result = Quaternion.FromToRotation(Vector3.forward, FORWARD_DOWN_RIGHT).eulerAngles; }
-		else if (orientation.y > 0 && orientation.x < 0) { result = Quaternion.FromToRotation(Vector3.forward, FORWARD_TOP_RIGHT).eulerAngles; }
-		else if (orientation.y < 0 && orientation.x == 0) { result = Quaternion.FromToRotation(Vector3.forward, Vector3.left).eulerAngles; }
-		else if (orientation.y > 0 && orientation.x == 0) { result = Quaternion.FromToRotation(Vector3.forward, Vector3.right).eulerAngles; }
-		else if (orientation.y == 0 && orientation.x > 0) { result = Quaternion.FromToRotation(Vector3.forward, Vector3.down).eulerAngles; }
-		else if (orientation.y == 0 && orientation.x < 0) { result = Quaternion.FromToRotation(Vector3.forward, Vector3.up).eulerAngles; }
-		else { result = Vector3.zero; }
+		result = Quaternion.LookRotation(result, Vector3.up).eulerAngles;
+		result = GetOrientation(result);
 
+		// if (orientation.y <= -0.09 && orientation.x >= 0.09) { result = Quaternion.LookRotation(DOWN_LEFT).eulerAngles; }
+		// else if (orientation.y <= -0.09 && orientation.x <= -0.09) { result = Quaternion.LookRotation(TOP_LEFT).eulerAngles; }
+		// else if (orientation.y >= 0.09 && orientation.x >= 0.09) { result = Quaternion.LookRotation(DOWN_RIGHT).eulerAngles; }
+		// else if (orientation.y >= 0.09 && orientation.x <= -0.09) { result = Quaternion.LookRotation(TOP_RIGHT).eulerAngles; }
+		// else if (orientation.y <= 0 && orientation.x > -0.09 && orientation.x < 0.09) { result = Quaternion.LookRotation(Vector3.left).eulerAngles; }
+		// else if (orientation.y >= 0 && orientation.x > -0.09 && orientation.x < 0.09) { result = Quaternion.LookRotation(Vector3.right).eulerAngles; }
+		// else if (orientation.y <= 0 && orientation.y > - 0.09 && orientation.x > 0.09) { result = Quaternion.LookRotation(Vector3.down).eulerAngles; }
+		// else if (orientation.y >= 0 && orientation.y < 0.09 && orientation.x < -0.09) { result = Quaternion.LookRotation(Vector3.up).eulerAngles; }
+		// else { result = Vector3.zero; }
+
+
+		// result = GetOrientation(result);
 		print(orientation);
 		return result;
 	}
