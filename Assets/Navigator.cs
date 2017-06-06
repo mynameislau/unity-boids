@@ -69,7 +69,7 @@ public class Navigator : MonoBehaviour {
 				);
 			requiredAngularAcceleration.z = 0;
 			rb.AddTorque(requiredAngularAcceleration * steeringAverage * 0.01f, ForceMode.Acceleration);
-			rb.AddRelativeForce(Vector3.forward * vectorsAverage.magnitude);
+			rb.AddRelativeForce(Vector3.forward * vectorsAverage.magnitude * 2);
 
 			rb.velocity = ClampMagnitudeMin(rb.velocity, minVelocityMagnitude);
 			rb.velocity = ClampMagnitudeMax(rb.velocity, maxVelocityMagnitude);
