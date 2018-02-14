@@ -137,6 +137,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mesh: {fileID: 4300000, guid: e5b841c5fab11fd4ca7620aa8b47786a, type: 3}
   material: {fileID: 2100000, guid: 2830b137b4a894ca3801e07125350f10, type: 2}
+  clip: {fileID: 0}
   boidSize: 1
   personalSpaceRadius: 2
   alignmentWeight: 0.1
@@ -238,7 +239,7 @@ Light:
   m_SpotAngle: 30
   m_CookieSize: 10
   m_Shadows:
-    m_Type: 2
+    m_Type: 0
     m_Resolution: -1
     m_CustomResolution: -1
     m_Strength: 1

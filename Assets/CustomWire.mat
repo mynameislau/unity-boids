@@ -21,4 +21,4 @@ Material:
     - _WireThickness: 100
     m_Colors:
     - _BaseColor: {r: 0, g: 0, b: 0, a: 1}
-    - _WireColor: {r: 0.45588237, g: 0.45588237, b: 0.45588237, a: 1}
+    - _WireColor: {r: 0, g: 0.39244428, b: 0.52205884, a: 1}
