@@ -8,7 +8,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Unity WebGL Player | Boids</title>
-    <script src="js/webvr-polyfill.min.js"></script>
     <script src="Build/UnityLoader.js"></script>
     <script>
       var gameInstance = UnityLoader.instantiate("gameContainer", "Build/webvr.json");
@@ -23,7 +22,6 @@
         <button id="btnFsEnter" class="btn btnFsEnter waiting" title="Fullscreen">Fullscreen</button>
       </div>
     </div>
-    <script src="js/three.min.js"></script>
-    <script src="js/UnityWebVRManager.js"></script>
+    <script src="dist/bundle.js"></script>
   </body>
 </html>

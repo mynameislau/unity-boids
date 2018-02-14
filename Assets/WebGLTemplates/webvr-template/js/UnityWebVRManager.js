@@ -1,4 +1,6 @@
-/* global SendMessage, THREE */
+import THREE from 'three';
+import 'webvr-polyfill';
+
 (function () {
   var btnFsEnter = document.querySelector('#btnFsEnter');
   var btnVrToggle = document.querySelector('#btnVrToggle');
